@@ -9,6 +9,12 @@ Enkel webapp som henter registrerte roller for en virksomhet
   (JWT-bearer grant) og det autoriserte kallet mot Brreg. Den private JWK-en
   forlater aldri serveren.
 
+## Slik ser det ut
+
+![Skjermbilde av rolleoppslag-appen](./image.png)
+
+> Appen kjører mot testmiljøet (TT02 / Brreg PPE) – alle data er fiktive testdata.
+
 ## Struktur
 
 ```
@@ -34,6 +40,12 @@ npm run dev
 ```
 
 Åpne <http://localhost:5173>. Frontend proxyer `/api`-kall til BFF-en.
+
+### Test det
+
+Bruk et testorganisasjonsnummer fra TT02, f.eks. **`310343013`**, og trykk
+«Hent roller». Du skal da se rollegrupper med fiktive testpersoner (navn,
+fødselsnummer og fødselsdato).
 
 ## Miljøvariabler (`server/.env`)
 
