@@ -19,3 +19,41 @@ export async function fetchRoller(orgnr) {
 
   return data;
 }
+
+export async function fetchEnhet(orgnr) {
+  const res = await fetch(`/api/enhet/${orgnr}`);
+
+  let data = null;
+  try {
+    data = await res.json();
+  } catch {
+    // ignorerer
+  }
+
+  if (!res.ok) {
+    const message =
+      (data && data.error) || 'Kunne ikke hente enhetsdata.';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function fetchTilfeldig() {
+  const res = await fetch('/api/tilfeldig');
+
+  let data = null;
+  try {
+    data = await res.json();
+  } catch {
+    // ignorerer
+  }
+
+  if (!res.ok) {
+    throw new Error(
+      (data && data.error) || 'Klarte ikke hente tilfeldig org.',
+    );
+  }
+
+  return data.organisasjonsnummer;
+}

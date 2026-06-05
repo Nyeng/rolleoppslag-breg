@@ -49,6 +49,7 @@ html.light {
 
 @layer base {
   html {
+    font-size: 18px;
     -webkit-font-smoothing: antialiased;
   }
 

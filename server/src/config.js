@@ -44,6 +44,9 @@ export function loadConfig() {
       baseUrl:
         process.env.BRREG_BASE_URL ||
         'https://data.ppe.brreg.no/enhetsregisteret/autorisert-api',
+      openBaseUrl:
+        process.env.BRREG_OPEN_BASE_URL ||
+        'https://data.ppe.brreg.no/enhetsregisteret/api',
     },
   };
 }

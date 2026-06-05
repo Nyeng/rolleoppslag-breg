@@ -1,7 +1,42 @@
 import { useState, useEffect } from 'react';
-import { fetchRoller } from './api.js';
+import { fetchRoller, fetchEnhet, fetchTilfeldig } from './api.js';
 
 const ORGNR_PATTERN = /^\d{9}$/;
+
+// Offisielle rollekoder fra Enhetsregisteret med norske beskrivelser.
+// Brukes som fallback/override når API-et mangler eller gir kryptisk tekst.
+const ROLLE_BESKRIVELSER = {
+  // Rollegruppe-koder
+  DAGL: 'Daglig leder',
+  STYR: 'Styre',
+  DELT: 'Deltakere',
+  REGN: 'Regnskapsfører',
+  REVI: 'Revisor',
+  SIGN: 'Signatur',
+  PROK: 'Prokura',
+  KOMP: 'Komplementar',
+  INNH: 'Innehaver',
+  KONT: 'Kontaktperson',
+  BEST: 'Bestyrende reder',
+  REPR: 'Norsk representant',
+  BOBE: 'Bostyrer',
+  FFØR: 'Forretningsfører',
+  // Individuelle rolletype-koder
+  LEDE: 'Styrets leder',
+  NEST: 'Nestleder',
+  MEDL: 'Styremedlem',
+  VARA: 'Varamedlem',
+  DTPR: 'Deltaker med proratarisk ansvar',
+  DTSO: 'Deltaker med solidarisk ansvar',
+  OBS:  'Observatør',
+  SAM:  'Sameier',
+};
+
+
+function rolleNavn(type) {
+  if (!type) return 'UKJENT';
+  return ROLLE_BESKRIVELSER[type.kode] || type.beskrivelse || type.kode || 'UKJENT';
+}
 
 export default function App() {
   const [orgnr, setOrgnr] = useState('');
@@ -9,7 +44,9 @@ export default function App() {
   const [status, setStatus] = useState('idle'); // idle | loading | success | error
   const [errorMessage, setErrorMessage] = useState('');
   const [data, setData] = useState(null);
+  const [enhetInfo, setEnhetInfo] = useState(null);
   const [searchedOrgnr, setSearchedOrgnr] = useState('');
+  const [loadingRandom, setLoadingRandom] = useState(false);
   const [theme, setTheme] = useState(() => {
     const saved =
       typeof localStorage !== 'undefined' && localStorage.getItem('theme');
@@ -41,13 +78,23 @@ export default function App() {
     setStatus('loading');
     setErrorMessage('');
     setData(null);
+    setEnhetInfo(null);
     setSearchedOrgnr(value);
-    try {
-      const result = await fetchRoller(value);
-      setData(result);
+
+    const [rollerResult, enhetResult] = await Promise.allSettled([
+      fetchRoller(value),
+      fetchEnhet(value),
+    ]);
+
+    if (enhetResult.status === 'fulfilled') {
+      setEnhetInfo(enhetResult.value);
+    }
+
+    if (rollerResult.status === 'fulfilled') {
+      setData(rollerResult.value);
       setStatus('success');
-    } catch (err) {
-      setErrorMessage(err.message);
+    } else {
+      setErrorMessage(rollerResult.reason?.message || 'Kunne ikke hente roller.');
       setStatus('error');
     }
   }
@@ -61,6 +108,20 @@ export default function App() {
     setOrgnr(value);
     setValidationError('');
     runSearch(value);
+  }
+
+  async function handleRandom() {
+    setLoadingRandom(true);
+    try {
+      const randomOrgnr = await fetchTilfeldig();
+      setOrgnr(randomOrgnr);
+      setValidationError('');
+      await runSearch(randomOrgnr);
+    } catch {
+      setValidationError('KLARTE IKKE HENTE TILFELDIG ORG. PRØV IGJEN.');
+    } finally {
+      setLoadingRandom(false);
+    }
   }
 
   const rollegrupper = data?.rollegrupper ?? [];
@@ -82,11 +143,17 @@ export default function App() {
           loading={status === 'loading'}
           validationError={validationError}
           onTry={handleTry}
+          onRandom={handleRandom}
+          loadingRandom={loadingRandom}
           idle={status === 'idle'}
         />
 
-        <div className="mt-8">
+        <div className="mt-8 space-y-5">
           {status === 'loading' && <BootSequence orgnr={searchedOrgnr} />}
+
+          {enhetInfo && status !== 'loading' && (
+            <EnhetHeader enhet={enhetInfo} orgnr={searchedOrgnr} />
+          )}
 
           {status === 'error' && (
             <Panel className="p-5 animate-boot-up">
@@ -195,7 +262,7 @@ function ModeToggle({ theme, onTheme }) {
 
 /* ───────────────────────── Prompt / søk ───────────────────────── */
 
-function Prompt({ orgnr, onChange, onSubmit, loading, validationError, onTry, idle }) {
+function Prompt({ orgnr, onChange, onSubmit, loading, validationError, onTry, onRandom, loadingRandom, idle }) {
   const hasError = Boolean(validationError);
   return (
     <section className="pt-10 sm:pt-14">
@@ -250,17 +317,29 @@ function Prompt({ orgnr, onChange, onSubmit, loading, validationError, onTry, id
         </Panel>
       </form>
 
-      {idle && !hasError && (
+      {!hasError && (
         <p className="mt-3 text-sm text-fg-faint">
-          HINT:{' '}
+          {idle && (
+            <>
+              HINT:{' '}
+              <button
+                type="button"
+                onClick={() => onTry('310343013')}
+                className="text-accent phosphor underline decoration-dotted underline-offset-4 hover:bg-accent hover:text-bg"
+              >
+                310343013
+              </button>{' '}
+              (testorg){' · '}
+            </>
+          )}
           <button
             type="button"
-            onClick={() => onTry('310343013')}
-            className="text-accent phosphor underline decoration-dotted underline-offset-4 hover:bg-accent hover:text-bg"
+            onClick={onRandom}
+            disabled={loadingRandom || loading}
+            className="text-accent phosphor underline decoration-dotted underline-offset-4 hover:bg-accent hover:text-bg disabled:opacity-60"
           >
-            310343013
-          </button>{' '}
-          (testorg)
+            {loadingRandom ? 'HENTER...' : 'TILFELDIG ORG →'}
+          </button>
         </p>
       )}
     </section>
@@ -269,17 +348,60 @@ function Prompt({ orgnr, onChange, onSubmit, loading, validationError, onTry, id
 
 /* ───────────────────────── Resultater ───────────────────────── */
 
+function EnhetHeader({ enhet, orgnr }) {
+  const navn = enhet.navn || '—';
+  const orgform = enhet.organisasjonsform?.beskrivelse;
+  const stiftet = enhet.stiftelsesdato;
+  const adresse = enhet.forretningsadresse || enhet.postadresse;
+  const adresseLinje = adresse
+    ? [adresse.poststed, adresse.kommune]
+        .filter(Boolean)
+        .join(', ')
+    : null;
+  const naeringKode = enhet.naeringskode1;
+  const naering = naeringKode
+    ? `${naeringKode.kode} ${naeringKode.beskrivelse}`
+    : null;
+
+  return (
+    <Panel className="p-4 sm:p-5 animate-boot-up">
+      <p className="text-xs text-fg-faint tracking-[0.2em] mb-2">
+        ENHET · {formatOrgnr(orgnr)}
+      </p>
+      <p className="font-display text-2xl sm:text-3xl text-accent phosphor leading-tight">
+        {navn}
+      </p>
+      <div className="mt-2 space-y-0.5 text-sm">
+        {orgform && <Field label="Form" value={orgform} />}
+        {adresseLinje && <Field label="Sted" value={adresseLinje} />}
+        {naering && <Field label="Næring" value={naering} />}
+        {stiftet && <Field label="Stiftet" value={stiftet} />}
+      </div>
+    </Panel>
+  );
+}
+
 function Results({ orgnr, rollegrupper }) {
+  const [activeFilter, setActiveFilter] = useState(null); // null = vis alle
+
   const totalRoller = rollegrupper.reduce(
     (sum, g) => sum + (g.roller?.length ?? 0),
     0,
   );
+
+  const filtered = activeFilter
+    ? rollegrupper.filter((g) => g.type?.kode === activeFilter)
+    : rollegrupper;
+
   let featuredIdx = 0;
-  rollegrupper.forEach((g, i) => {
-    if ((g.roller?.length ?? 0) > (rollegrupper[featuredIdx].roller?.length ?? 0)) {
+  filtered.forEach((g, i) => {
+    if ((g.roller?.length ?? 0) > (filtered[featuredIdx]?.roller?.length ?? 0)) {
       featuredIdx = i;
     }
   });
+
+  // Unike rollekoder for filter-chips.
+  const koder = rollegrupper.map((g) => g.type?.kode).filter(Boolean);
 
   return (
     <section aria-live="polite">
@@ -293,12 +415,29 @@ function Results({ orgnr, rollegrupper }) {
       </div>
       <Divider />
 
-      <div className="mt-5">
-        <NodeMap orgnr={orgnr} rollegrupper={rollegrupper} />
-      </div>
+      {/* Rollekode-filter */}
+      {koder.length > 1 && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          <FilterChip
+            label="ALLE"
+            active={activeFilter === null}
+            onClick={() => setActiveFilter(null)}
+          />
+          {koder.map((kode) => (
+            <FilterChip
+              key={kode}
+              label={ROLLE_BESKRIVELSER[kode] || kode}
+              active={activeFilter === kode}
+              onClick={() =>
+                setActiveFilter((prev) => (prev === kode ? null : kode))
+              }
+            />
+          ))}
+        </div>
+      )}
 
       <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 [grid-auto-flow:dense]">
-        {rollegrupper.map((gruppe, i) => (
+        {filtered.map((gruppe, i) => (
           <RecordCard
             key={(gruppe.type?.kode ?? 'g') + i}
             gruppe={gruppe}
@@ -307,11 +446,31 @@ function Results({ orgnr, rollegrupper }) {
           />
         ))}
       </div>
+
+      <div className="mt-5">
+        <NodeMap orgnr={orgnr} rollegrupper={rollegrupper} activeFilter={activeFilter} />
+      </div>
     </section>
   );
 }
 
-function NodeMap({ orgnr, rollegrupper }) {
+function FilterChip({ label, active, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`px-2.5 py-1 text-xs font-bold tracking-wider border transition-colors ${
+        active
+          ? 'bg-accent text-bg border-[var(--border-strong)]'
+          : 'text-fg-dim border-line hover:text-accent hover:border-[var(--border-strong)]'
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function NodeMap({ orgnr, rollegrupper, activeFilter }) {
   const n = rollegrupper.length;
   const rx = n <= 2 ? 26 : 37;
   const ry = 32;
@@ -331,19 +490,24 @@ function NodeMap({ orgnr, rollegrupper }) {
       </p>
 
       <svg className="absolute inset-0 h-full w-full" aria-hidden>
-        {nodes.map((node, i) => (
-          <line
-            key={i}
-            x1="50%"
-            y1="50%"
-            x2={`${node.x}%`}
-            y2={`${node.y}%`}
-            stroke="var(--accent)"
-            strokeWidth="1"
-            strokeOpacity="0.5"
-            strokeDasharray="3 4"
-          />
-        ))}
+        {nodes.map((node, i) => {
+          const kode = node.gruppe.type?.kode;
+          const dimmed = activeFilter && kode !== activeFilter;
+          return (
+            <line
+              key={i}
+              x1="50%"
+              y1="50%"
+              x2={`${node.x}%`}
+              y2={`${node.y}%`}
+              stroke={dimmed ? 'var(--border)' : 'var(--accent)'}
+              strokeWidth={activeFilter === kode ? '2' : '1'}
+              strokeOpacity={dimmed ? '0.25' : '0.5'}
+              strokeDasharray="3 4"
+              className="transition-all duration-300"
+            />
+          );
+        })}
       </svg>
 
       <div className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 text-center">
@@ -355,27 +519,36 @@ function NodeMap({ orgnr, rollegrupper }) {
         </div>
       </div>
 
-      {nodes.map((node, i) => (
-        <div
-          key={i}
-          className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
-          style={{ left: `${node.x}%`, top: `${node.y}%` }}
-        >
-          <div className="panel px-2.5 py-1 text-center whitespace-nowrap">
-            <span className="text-accent phosphor font-bold text-xs">
-              [{node.gruppe.type?.kode ?? '???'}]
-            </span>
-            <span className="ml-1.5 text-fg-dim text-xs">×{node.gruppe.roller?.length ?? 0}</span>
+      {nodes.map((node, i) => {
+        const kode = node.gruppe.type?.kode;
+        const isActive = activeFilter === kode;
+        const dimmed = activeFilter && !isActive;
+        return (
+          <div
+            key={i}
+            className={`absolute z-10 -translate-x-1/2 -translate-y-1/2 transition-opacity duration-300 ${
+              dimmed ? 'opacity-30' : 'opacity-100'
+            }`}
+            style={{ left: `${node.x}%`, top: `${node.y}%` }}
+          >
+            <div className={`panel px-2.5 py-1 text-center whitespace-nowrap ${
+              isActive ? 'border-[var(--border-strong)] shadow-[var(--glow)]' : ''
+            }`}>
+              <span className="text-accent phosphor font-bold text-xs">
+                {rolleNavn(node.gruppe.type)}
+              </span>
+              <span className="ml-1.5 text-fg-dim text-xs">×{node.gruppe.roller?.length ?? 0}</span>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </Panel>
   );
 }
 
 function RecordCard({ gruppe, featured, index }) {
   const roller = gruppe.roller ?? [];
-  const tittel = (gruppe.type?.beskrivelse ?? gruppe.type?.kode ?? 'ROLLEGRUPPE').toUpperCase();
+  const tittel = rolleNavn(gruppe.type).toUpperCase();
 
   return (
     <div
@@ -384,31 +557,36 @@ function RecordCard({ gruppe, featured, index }) {
     >
       <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-2">
         <p className="text-accent phosphor font-bold tracking-wide truncate">
-          [ {tittel} ]
+          {tittel}
         </p>
-        <span className="shrink-0 text-xs font-bold text-bg bg-accent px-1.5 py-0.5">
-          {gruppe.type?.kode ?? '—'}
+        <span className="shrink-0 text-xs text-fg-faint">
+          {roller.length} {roller.length === 1 ? 'rolle' : 'roller'}
         </span>
       </div>
 
       <div className={`p-4 ${featured ? 'grid sm:grid-cols-2 gap-4' : 'space-y-4'}`}>
         {roller.map((rolle, i) => (
-          <RecordRow key={i} rolle={rolle} />
+          <RecordRow key={i} rolle={rolle} gruppeKode={gruppe.type?.kode} />
         ))}
       </div>
     </div>
   );
 }
 
-function RecordRow({ rolle }) {
+function RecordRow({ rolle, gruppeKode }) {
   const innehaver = describeHolder(rolle);
-  const rolleNavn = (rolle.type?.beskrivelse ?? rolle.type?.kode ?? '').toUpperCase();
+  const rolleLabel = rolleNavn(rolle.type).toUpperCase();
+
+  // Vis "Hent daglig leder"-knapp for revisor/regnskapsfører-virksomheter.
+  const kanHenteDagl =
+    rolle.enhet?.organisasjonsnummer &&
+    ['REVI', 'REGN'].includes(gruppeKode);
 
   return (
     <div className="text-sm">
       <div className="flex items-baseline justify-between gap-2">
         <p className="font-bold text-fg phosphor truncate">{innehaver.primary}</p>
-        <span className="shrink-0 text-[11px] text-fg-faint">{rolleNavn}</span>
+        <span className="shrink-0 text-[11px] text-fg-faint">{rolleLabel}</span>
       </div>
 
       <div className="mt-1.5 space-y-0.5">
@@ -425,6 +603,76 @@ function RecordRow({ rolle }) {
           {rolle.enhet?.erSlettet && <StatusTag>SLETTET</StatusTag>}
         </div>
       )}
+
+      {kanHenteDagl && (
+        <DagligLederLookup orgnr={rolle.enhet.organisasjonsnummer} />
+      )}
+    </div>
+  );
+}
+
+function DagligLederLookup({ orgnr }) {
+  const [state, setState] = useState('idle'); // idle | loading | done | error
+  const [dagl, setDagl] = useState(null);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  async function hent() {
+    setState('loading');
+    try {
+      const data = await fetchRoller(orgnr);
+      const daglGruppe = (data?.rollegrupper ?? []).find(
+        (g) => g.type?.kode === 'DAGL',
+      );
+      const dagligLeder = daglGruppe?.roller?.[0];
+      if (dagligLeder) {
+        setDagl(dagligLeder);
+        setState('done');
+      } else {
+        setErrorMsg('Ingen daglig leder funnet');
+        setState('error');
+      }
+    } catch (err) {
+      setErrorMsg(err.message || 'Kunne ikke hente roller');
+      setState('error');
+    }
+  }
+
+  if (state === 'idle') {
+    return (
+      <button
+        type="button"
+        onClick={hent}
+        className="mt-2 text-xs text-accent phosphor underline decoration-dotted underline-offset-4 hover:bg-accent hover:text-bg"
+      >
+        Vis daglig leder →
+      </button>
+    );
+  }
+
+  if (state === 'loading') {
+    return (
+      <p className="mt-2 text-xs text-fg-dim">
+        <span className="cursor">Henter daglig leder</span>
+      </p>
+    );
+  }
+
+  if (state === 'error') {
+    return (
+      <p className="mt-2 text-xs text-fg-faint">{errorMsg}</p>
+    );
+  }
+
+  const holder = describeHolder(dagl);
+  return (
+    <div className="mt-2 border-t border-line pt-2">
+      <p className="text-[11px] text-fg-faint tracking-[0.15em] mb-1">DAGLIG LEDER</p>
+      <p className="font-bold text-fg phosphor">{holder.primary}</p>
+      <div className="mt-1 space-y-0.5">
+        {holder.details.map((d) => (
+          <Field key={d.label} {...d} />
+        ))}
+      </div>
     </div>
   );
 }
