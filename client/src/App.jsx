@@ -28,8 +28,8 @@ const ROLLE_BESKRIVELSER = {
   VARA: 'Varamedlem',
   DTPR: 'Deltaker med proratarisk ansvar',
   DTSO: 'Deltaker med solidarisk ansvar',
-  OBS:  'Observatør',
-  SAM:  'Sameier',
+  OBS: 'Observatør',
+  SAM: 'Sameier',
 };
 
 
@@ -251,11 +251,10 @@ function ModeToggle({ theme, onTheme }) {
         type="button"
         onClick={() => onTheme(value)}
         aria-pressed={active}
-        className={`px-2.5 py-1 text-xs font-bold tracking-wider transition-colors ${
-          active
-            ? 'bg-accent text-bg'
-            : 'text-fg-faint hover:text-fg'
-        }`}
+        className={`px-2.5 py-1 text-xs font-bold tracking-wider transition-colors ${active
+          ? 'bg-accent text-bg'
+          : 'text-fg-faint hover:text-fg'
+          }`}
       >
         {label}
       </button>
@@ -281,8 +280,7 @@ function Prompt({ orgnr, onChange, onSubmit, loading, validationError, onTry, on
       </h1>
       <p className="mt-3 text-fg-dim text-sm sm:text-base max-w-2xl">
         Skriv inn et organisasjonsnummer (9 siffer) og kjør oppslag mot
-        Enhetsregisteret. Daglig leder, styre, deltakere og regnskapsfører
-        returneres som poster.
+        Enhetsregisteret.
       </p>
 
       <form onSubmit={onSubmit} noValidate className="mt-7">
@@ -363,8 +361,8 @@ function EnhetHeader({ enhet, orgnr }) {
   const adresse = enhet.forretningsadresse || enhet.postadresse;
   const adresseLinje = adresse
     ? [adresse.poststed, adresse.kommune]
-        .filter(Boolean)
-        .join(', ')
+      .filter(Boolean)
+      .join(', ')
     : null;
   const naeringKode = enhet.naeringskode1;
   const naering = naeringKode
@@ -485,13 +483,12 @@ function FilterChip({ kode, label, active, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className={`px-2.5 py-1 text-xs font-bold tracking-wider border transition-colors inline-flex items-center gap-1.5 ${
-        active
-          ? farge
-            ? 'border-[var(--border-strong)]'
-            : 'bg-accent text-bg border-[var(--border-strong)]'
-          : 'text-fg-dim border-line hover:text-accent hover:border-[var(--border-strong)]'
-      }`}
+      className={`px-2.5 py-1 text-xs font-bold tracking-wider border transition-colors inline-flex items-center gap-1.5 ${active
+        ? farge
+          ? 'border-[var(--border-strong)]'
+          : 'bg-accent text-bg border-[var(--border-strong)]'
+        : 'text-fg-dim border-line hover:text-accent hover:border-[var(--border-strong)]'
+        }`}
       style={active && farge ? { backgroundColor: farge.bg, color: farge.text } : undefined}
     >
       {farge && !active && (
@@ -561,15 +558,13 @@ function NodeMap({ orgnr, rollegrupper, activeFilter }) {
         return (
           <div
             key={i}
-            className={`absolute z-10 -translate-x-1/2 -translate-y-1/2 transition-opacity duration-300 ${
-              dimmed ? 'opacity-30' : 'opacity-100'
-            }`}
+            className={`absolute z-10 -translate-x-1/2 -translate-y-1/2 transition-opacity duration-300 ${dimmed ? 'opacity-30' : 'opacity-100'
+              }`}
             style={{ left: `${node.x}%`, top: `${node.y}%` }}
           >
             <div
-              className={`px-2.5 py-1 text-center whitespace-nowrap border ${
-                isActive ? 'border-white/40 shadow-[var(--glow)]' : 'border-transparent'
-              }`}
+              className={`px-2.5 py-1 text-center whitespace-nowrap border ${isActive ? 'border-white/40 shadow-[var(--glow)]' : 'border-transparent'
+                }`}
               style={{
                 backgroundColor: rolleFarge(kode).bg,
                 color: rolleFarge(kode).text,
@@ -757,11 +752,10 @@ function CopyButton({ value, label }) {
       type="button"
       onClick={copy}
       aria-label={`Kopier ${label}`}
-      className={`shrink-0 text-[11px] font-bold tracking-wide px-1.5 transition-colors ${
-        copied
-          ? 'text-bg bg-[var(--accent-2)]'
-          : 'text-accent hover:bg-accent hover:text-bg'
-      }`}
+      className={`shrink-0 text-[11px] font-bold tracking-wide px-1.5 transition-colors ${copied
+        ? 'text-bg bg-[var(--accent-2)]'
+        : 'text-accent hover:bg-accent hover:text-bg'
+        }`}
     >
       {copied ? '[ OK ✓ ]' : '[COPY]'}
     </button>
