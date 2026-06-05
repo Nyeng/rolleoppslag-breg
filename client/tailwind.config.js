@@ -5,8 +5,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        // VT323 = ekte CRT-terminalfont. IBM Plex Mono = lesbar brødtekst.
-        display: ['VT323', 'monospace'],
+        // Share Tech Mono = retro terminalfont. IBM Plex Mono = lesbar brødtekst.
+        display: ['"Share Tech Mono"', 'monospace'],
         mono: ['"IBM Plex Mono"', 'ui-monospace', 'monospace'],
         sans: ['"IBM Plex Mono"', 'ui-monospace', 'monospace'],
       },
