@@ -376,7 +376,7 @@ function EnhetHeader({ enhet, orgnr }) {
       <p className="text-xs text-fg-faint tracking-[0.2em] mb-2">
         ENHET · {formatOrgnr(orgnr)}
       </p>
-      <p className="font-display text-2xl sm:text-3xl text-accent phosphor leading-tight">
+      <p className="font-display text-lg sm:text-xl text-accent phosphor leading-tight">
         {navn}
       </p>
       <div className="mt-2 space-y-0.5 text-sm">
