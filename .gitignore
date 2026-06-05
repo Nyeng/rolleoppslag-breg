@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+.DS_Store
+
+# Personlig brief – kan inneholde hemmeligheter (JWK/client-id)
+INSTRUCTIONS.MD
