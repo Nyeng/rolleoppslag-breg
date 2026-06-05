@@ -1,59 +1,7 @@
 import { useState, useEffect } from 'react';
 import { fetchRoller } from './api.js';
-import {
-  Search,
-  ArrowRight,
-  Sparkles,
-  Copy,
-  Check,
-  Building2,
-  Users,
-  UserRound,
-  Landmark,
-  Calculator,
-  Contact,
-  KeyRound,
-  ShieldCheck,
-  TriangleAlert,
-  FlaskConical,
-  LoaderCircle,
-  Hash,
-  CalendarDays,
-  Fingerprint,
-  Activity,
-  Sun,
-  Moon,
-} from 'lucide-react';
 
 const ORGNR_PATTERN = /^\d{9}$/;
-
-// Distinkte aksentpaletter – hver rollegruppe får sin egen farge.
-const PALETTES = [
-  { ring: '#34d399', glow: '52,211,153', text: 'text-emerald-300' },
-  { ring: '#a78bfa', glow: '139,92,246', text: 'text-violet-300' },
-  { ring: '#22d3ee', glow: '34,211,238', text: 'text-cyan-300' },
-  { ring: '#fbbf24', glow: '251,191,36', text: 'text-amber-300' },
-  { ring: '#f472b6', glow: '244,114,182', text: 'text-pink-300' },
-  { ring: '#60a5fa', glow: '96,165,250', text: 'text-blue-300' },
-];
-
-const KODE_ICON = {
-  DAGL: UserRound,
-  STYR: Landmark,
-  LEDE: ShieldCheck,
-  NEST: ShieldCheck,
-  MEDL: Users,
-  VARA: Users,
-  DELT: Users,
-  REGN: Calculator,
-  REVI: Calculator,
-  KONT: Contact,
-  KOMP: Contact,
-  INNH: KeyRound,
-};
-
-const iconForKode = (kode) => KODE_ICON[kode] || Building2;
-const paletteFor = (i) => PALETTES[i % PALETTES.length];
 
 export default function App() {
   const [orgnr, setOrgnr] = useState('');
@@ -85,10 +33,9 @@ export default function App() {
     if (validationError) setValidationError('');
   }
 
-  // Felles søkelogikk – uendret oppførsel, bare parameterisert.
   async function runSearch(value) {
     if (!ORGNR_PATTERN.test(value)) {
-      setValidationError('Organisasjonsnummeret må bestå av nøyaktig 9 siffer.');
+      setValidationError('ORGANISASJONSNUMMER MÅ VÆRE NØYAKTIG 9 SIFFER');
       return;
     }
     setStatus('loading');
@@ -120,42 +67,41 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <TestStrip />
-      <SiteHeader theme={theme} onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))} />
+      <CrtScanline />
+      <TestBanner />
+      <SiteHeader
+        theme={theme}
+        onTheme={(t) => setTheme(t)}
+      />
 
-      <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 pb-20">
-        <Hero
+      <main className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 pb-20">
+        <Prompt
           orgnr={orgnr}
           onChange={handleChange}
           onSubmit={handleSubmit}
           loading={status === 'loading'}
           validationError={validationError}
           onTry={handleTry}
-          showHint={status === 'idle'}
+          idle={status === 'idle'}
         />
 
-        <div className="mt-10">
-          {status === 'loading' && <LoadingState />}
+        <div className="mt-8">
+          {status === 'loading' && <BootSequence orgnr={searchedOrgnr} />}
 
           {status === 'error' && (
-            <StateCard
-              tone="danger"
-              icon={TriangleAlert}
-              title="Kunne ikke hente roller"
-            >
-              {errorMessage}
-            </StateCard>
+            <Panel className="p-5 animate-boot-up">
+              <p className="text-accent phosphor font-bold">! FEIL — KUNNE IKKE HENTE ROLLER</p>
+              <p className="mt-2 text-fg-dim text-sm">{errorMessage}</p>
+            </Panel>
           )}
 
           {status === 'success' && rollegrupper.length === 0 && (
-            <StateCard
-              tone="info"
-              icon={Search}
-              title="Ingen roller funnet"
-            >
-              Vi fant ingen registrerte roller for organisasjonsnummer{' '}
-              <span className="font-mono text-fg">{formatOrgnr(searchedOrgnr)}</span>.
-            </StateCard>
+            <Panel className="p-5 animate-boot-up">
+              <p className="text-accent phosphor font-bold">∅ INGEN ROLLER FUNNET</p>
+              <p className="mt-2 text-fg-dim text-sm">
+                Ingen registrerte roller for ORG {formatOrgnr(searchedOrgnr)}.
+              </p>
+            </Panel>
           )}
 
           {status === 'success' && rollegrupper.length > 0 && (
@@ -169,96 +115,107 @@ export default function App() {
   );
 }
 
+/* ───────────────────── CRT-effekt: bevegelig skannlinje ───────────────────── */
+
+function CrtScanline() {
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none fixed inset-x-0 top-0 z-[60] h-24 animate-scan"
+      style={{
+        background:
+          'linear-gradient(to bottom, transparent, rgba(255,176,0,0.06), transparent)',
+      }}
+    />
+  );
+}
+
 /* ───────────────────────── Chrome ───────────────────────── */
 
-function TestStrip() {
+function TestBanner() {
   return (
-    <div className="w-full border-b border-line bg-amber-400/[0.06] backdrop-blur-sm">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-2 flex items-center gap-2.5 text-xs sm:text-sm">
-        <span className="relative flex h-2 w-2 shrink-0">
-          <span className="absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 animate-ping" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
-        </span>
-        <FlaskConical className="h-4 w-4 text-amber-400 shrink-0" />
-        <p className="text-fg-muted">
-          <span className="font-semibold text-amber-300">Testmiljø · TT02.</span>{' '}
-          Ikke produksjon – alle data er fiktive testdata fra Brreg PPE.
+    <div className="w-full border-b border-line">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-1.5 flex items-center gap-2 text-xs sm:text-sm">
+        <span className="text-accent phosphor animate-blink">*</span>
+        <p className="text-fg-dim tracking-wide">
+          <span className="text-accent phosphor font-bold">ADVARSEL: TESTMILJØ TT02</span>
+          {' '}— IKKE PRODUKSJON · ALLE DATA ER FIKTIVE (BRREG PPE)
         </p>
+        <span className="text-accent phosphor animate-blink">*</span>
       </div>
     </div>
   );
 }
 
-function SiteHeader({ theme, onToggleTheme }) {
+function SiteHeader({ theme, onTheme }) {
   return (
-    <header className="w-full">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="relative grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-violet-500 via-fuchsia-500 to-cyan-400 shadow-glow-violet">
-            <Activity className="h-5 w-5 text-white" strokeWidth={2.5} />
-          </div>
-          <div className="leading-tight">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-fg-faint">
-              Enhetsregisteret
-            </p>
-            <p className="text-base font-extrabold text-fg">Rolleoppslag</p>
-          </div>
+    <header className="w-full border-b border-line">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-end justify-between gap-4">
+        <div>
+          <pre className="text-accent phosphor leading-none font-display text-3xl sm:text-4xl select-none">
+{`BRREG//ROLLEOPPSLAG`}
+          </pre>
+          <p className="mt-1 text-xs text-fg-faint tracking-[0.2em]">
+            ENHETSREGISTERET · AUTORISERT API · v2.0
+          </p>
         </div>
 
-        <button
-          type="button"
-          onClick={onToggleTheme}
-          aria-label={theme === 'dark' ? 'Bytt til lyst tema' : 'Bytt til mørkt tema'}
-          className="ring-glow group relative grid h-10 w-10 place-items-center rounded-xl glass hover:bg-[var(--surface-hover)]"
-        >
-          {theme === 'dark' ? (
-            <Sun className="h-[18px] w-[18px] text-amber-300 transition-transform group-hover:rotate-45" />
-          ) : (
-            <Moon className="h-[18px] w-[18px] text-violet-500 transition-transform group-hover:-rotate-12" />
-          )}
-        </button>
+        <ModeToggle theme={theme} onTheme={onTheme} />
       </div>
     </header>
   );
 }
 
-/* ───────────────────────── Hero + søk ───────────────────────── */
+function ModeToggle({ theme, onTheme }) {
+  const Seg = ({ value, label }) => {
+    const active = theme === value;
+    return (
+      <button
+        type="button"
+        onClick={() => onTheme(value)}
+        aria-pressed={active}
+        className={`px-2.5 py-1 text-xs font-bold tracking-wider transition-colors ${
+          active
+            ? 'bg-accent text-bg'
+            : 'text-fg-faint hover:text-fg'
+        }`}
+      >
+        {label}
+      </button>
+    );
+  };
+  return (
+    <div className="flex items-center border border-line shrink-0">
+      <Seg value="dark" label="CRT" />
+      <span className="w-px self-stretch bg-[var(--border)]" />
+      <Seg value="light" label="PAPIR" />
+    </div>
+  );
+}
 
-function Hero({ orgnr, onChange, onSubmit, loading, validationError, onTry, showHint }) {
+/* ───────────────────────── Prompt / søk ───────────────────────── */
+
+function Prompt({ orgnr, onChange, onSubmit, loading, validationError, onTry, idle }) {
   const hasError = Boolean(validationError);
   return (
-    <section className="relative pt-8 sm:pt-14">
-      <div className="text-center max-w-2xl mx-auto">
-        <span className="inline-flex items-center gap-1.5 rounded-full glass px-3 py-1 text-xs font-medium text-fg-muted">
-          <Sparkles className="h-3.5 w-3.5 text-violet-400" />
-          Maskinporten · autorisert API
-        </span>
-        <h1 className="mt-5 text-4xl sm:text-5xl font-extrabold tracking-tight text-fg">
-          Finn roller bak en{' '}
-          <span className="bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-300 bg-clip-text text-transparent">
-            virksomhet
-          </span>
-        </h1>
-        <p className="mt-4 text-fg-muted text-base sm:text-lg">
-          Slå opp daglig leder, styre, deltakere og regnskapsfører med ett
-          organisasjonsnummer.
-        </p>
-      </div>
+    <section className="pt-10 sm:pt-14">
+      <h1 className="font-display text-4xl sm:text-5xl text-accent phosphor leading-none">
+        FINN ROLLER BAK EN VIRKSOMHET
+      </h1>
+      <p className="mt-3 text-fg-dim text-sm sm:text-base max-w-2xl">
+        Skriv inn et organisasjonsnummer (9 siffer) og kjør oppslag mot
+        Enhetsregisteret. Daglig leder, styre, deltakere og regnskapsfører
+        returneres som poster.
+      </p>
 
-      <form
-        onSubmit={onSubmit}
-        noValidate
-        className="mt-8 max-w-2xl mx-auto"
-      >
-        <div className="group relative rounded-2xl">
-          {/* Fokusglød rundt hele søkefeltet */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -inset-[2px] rounded-2xl bg-gradient-to-r from-violet-500/50 via-fuchsia-500/40 to-cyan-400/50 opacity-0 blur-md transition-opacity duration-300 group-focus-within:opacity-100"
-          />
-          <div className="relative flex flex-col sm:flex-row items-stretch gap-2 rounded-2xl glass p-2">
-            <div className="flex flex-1 items-center gap-3 px-3">
-              <Search className="h-5 w-5 shrink-0 text-fg-faint" />
+      <form onSubmit={onSubmit} noValidate className="mt-7">
+        <Panel className="p-4 sm:p-5">
+          <label htmlFor="orgnr" className="block text-xs text-fg-faint tracking-[0.2em] mb-2">
+            QUERY · ORGANISASJONSNUMMER
+          </label>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex flex-1 items-center gap-2 border-b-2 border-[var(--border-strong)] pb-1">
+              <span className="text-accent phosphor font-bold select-none">{'>'}</span>
               <input
                 id="orgnr"
                 name="orgnr"
@@ -268,50 +225,44 @@ function Hero({ orgnr, onChange, onSubmit, loading, validationError, onTry, show
                 value={orgnr}
                 onChange={onChange}
                 aria-invalid={hasError}
-                placeholder="9-sifret organisasjonsnummer"
-                className="w-full bg-transparent py-3 text-lg font-mono tracking-[0.15em] text-fg placeholder:text-fg-faint placeholder:tracking-normal placeholder:font-sans focus:outline-none"
+                placeholder="_________"
+                className="w-full bg-transparent text-2xl sm:text-3xl font-display tracking-[0.35em] text-fg phosphor placeholder:text-fg-faint focus:outline-none"
               />
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="group/btn relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-xl px-6 py-3 font-semibold text-white transition-transform active:scale-[0.97] disabled:opacity-70 disabled:active:scale-100"
+              className="group shrink-0 border border-[var(--border-strong)] px-5 py-2.5 font-bold tracking-wider text-accent phosphor transition-colors hover:bg-accent hover:text-bg disabled:opacity-60 disabled:hover:bg-transparent disabled:hover:text-accent"
             >
-              <span className="absolute inset-0 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500" />
-              <span className="absolute inset-0 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-400 opacity-0 transition-opacity duration-300 group-hover/btn:opacity-100" />
-              <span className="absolute -inset-y-8 -left-1/2 w-1/3 rotate-12 bg-white/25 blur-md opacity-0 transition-opacity duration-300 group-hover/btn:opacity-100 group-hover/btn:animate-shimmer" />
-              <span className="relative flex items-center gap-2 whitespace-nowrap">
-                {loading ? (
-                  <LoaderCircle className="h-5 w-5 animate-spin" />
-                ) : (
-                  <ArrowRight className="h-5 w-5 transition-transform group-hover/btn:translate-x-0.5" />
-                )}
-                {loading ? 'Henter…' : 'Hent roller'}
-              </span>
+              {loading ? (
+                <span className="cursor">KJØRER</span>
+              ) : (
+                <span>[ KJØR SØK ]</span>
+              )}
             </button>
           </div>
-        </div>
 
-        {hasError && (
-          <p className="mt-3 flex items-center justify-center gap-1.5 text-sm font-medium text-rose-400" role="alert">
-            <TriangleAlert className="h-4 w-4" />
-            {validationError}
-          </p>
-        )}
-
-        {showHint && !hasError && (
-          <div className="mt-4 flex items-center justify-center gap-2 text-sm text-fg-faint">
-            <span>Prøv et testnummer:</span>
-            <button
-              type="button"
-              onClick={() => onTry('310343013')}
-              className="font-mono rounded-md border border-line px-2 py-0.5 text-fg-muted transition-colors hover:border-line-strong hover:text-fg"
-            >
-              310 343 013
-            </button>
-          </div>
-        )}
+          {hasError && (
+            <p className="mt-3 text-sm text-accent phosphor font-bold animate-blink" role="alert">
+              ! {validationError}
+            </p>
+          )}
+        </Panel>
       </form>
+
+      {idle && !hasError && (
+        <p className="mt-3 text-sm text-fg-faint">
+          HINT:{' '}
+          <button
+            type="button"
+            onClick={() => onTry('310343013')}
+            className="text-accent phosphor underline decoration-dotted underline-offset-4 hover:bg-accent hover:text-bg"
+          >
+            310343013
+          </button>{' '}
+          (testorg)
+        </p>
+      )}
     </section>
   );
 }
@@ -323,7 +274,6 @@ function Results({ orgnr, rollegrupper }) {
     (sum, g) => sum + (g.roller?.length ?? 0),
     0,
   );
-  // Største gruppe blir "featured" i bento-rutenettet.
   let featuredIdx = 0;
   rollegrupper.forEach((g, i) => {
     if ((g.roller?.length ?? 0) > (rollegrupper[featuredIdx].roller?.length ?? 0)) {
@@ -332,33 +282,26 @@ function Results({ orgnr, rollegrupper }) {
   });
 
   return (
-    <section aria-live="polite" className="animate-fade-in">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-fg-faint">
-            Resultat
-          </p>
-          <h2 className="mt-1 text-2xl font-bold text-fg">
-            Roller for{' '}
-            <span className="font-mono text-violet-300">{formatOrgnr(orgnr)}</span>
-          </h2>
-        </div>
-        <div className="flex items-center gap-2">
-          <Stat label="grupper" value={rollegrupper.length} />
-          <Stat label="roller" value={totalRoller} />
-        </div>
+    <section aria-live="polite">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 text-accent phosphor">
+        <p className="font-bold tracking-wider">
+          {'>>>'} RESULTAT · ORG {formatOrgnr(orgnr)}
+        </p>
+        <p className="text-sm text-fg-dim">
+          {rollegrupper.length} GRUPPER / {totalRoller} ROLLER
+        </p>
       </div>
+      <Divider />
 
-      <div className="mt-6">
-        <RelationshipMap orgnr={orgnr} rollegrupper={rollegrupper} />
+      <div className="mt-5">
+        <NodeMap orgnr={orgnr} rollegrupper={rollegrupper} />
       </div>
 
       <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 [grid-auto-flow:dense]">
         {rollegrupper.map((gruppe, i) => (
-          <RoleGroupCard
+          <RecordCard
             key={(gruppe.type?.kode ?? 'g') + i}
             gruppe={gruppe}
-            palette={paletteFor(i)}
             featured={i === featuredIdx}
             index={i}
           />
@@ -368,47 +311,26 @@ function Results({ orgnr, rollegrupper }) {
   );
 }
 
-function Stat({ label, value }) {
-  return (
-    <div className="rounded-xl glass px-3.5 py-2 text-center">
-      <p className="text-lg font-bold leading-none text-fg">{value}</p>
-      <p className="mt-1 text-[10px] uppercase tracking-wider text-fg-faint">
-        {label}
-      </p>
-    </div>
-  );
-}
-
-function RelationshipMap({ orgnr, rollegrupper }) {
+function NodeMap({ orgnr, rollegrupper }) {
   const n = rollegrupper.length;
   const rx = n <= 2 ? 26 : 37;
-  const ry = 33;
+  const ry = 32;
   const nodes = rollegrupper.map((g, i) => {
     const angle = (-90 + (360 / n) * i) * (Math.PI / 180);
     return {
       x: 50 + rx * Math.cos(angle),
       y: 50 + ry * Math.sin(angle),
       gruppe: g,
-      palette: paletteFor(i),
     };
   });
 
   return (
-    <div className="relative h-[320px] sm:h-[380px] overflow-hidden rounded-3xl glass ring-glow p-4">
-      <div className="absolute left-4 top-4 z-10 flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-fg-faint">
-        <Sparkles className="h-3.5 w-3.5 text-cyan-300" />
-        Relasjonskart
-      </div>
+    <Panel className="relative h-[300px] sm:h-[360px] overflow-hidden p-3">
+      <p className="absolute left-3 top-2 z-10 text-[11px] tracking-[0.2em] text-fg-faint">
+        [ RELASJONSKART ]
+      </p>
 
-      {/* Forbindelseslinjer */}
       <svg className="absolute inset-0 h-full w-full" aria-hidden>
-        <defs>
-          <radialGradient id="hub" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="rgba(139,92,246,0.35)" />
-            <stop offset="100%" stopColor="rgba(139,92,246,0)" />
-          </radialGradient>
-        </defs>
-        <circle cx="50%" cy="50%" r="120" fill="url(#hub)" />
         {nodes.map((node, i) => (
           <line
             key={i}
@@ -416,174 +338,110 @@ function RelationshipMap({ orgnr, rollegrupper }) {
             y1="50%"
             x2={`${node.x}%`}
             y2={`${node.y}%`}
-            stroke={node.palette.ring}
-            strokeWidth="1.5"
-            strokeOpacity="0.45"
-            strokeDasharray="2 6"
-            strokeLinecap="round"
-            className="animate-dash-flow"
+            stroke="var(--accent)"
+            strokeWidth="1"
+            strokeOpacity="0.5"
+            strokeDasharray="3 4"
           />
         ))}
       </svg>
 
-      {/* Sentralnode: virksomheten */}
-      <div className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2">
-        <div className="ring-glow flex flex-col items-center gap-1 rounded-2xl bg-surface/90 px-5 py-3 shadow-glow-violet">
-          <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-cyan-400">
-            <Building2 className="h-5 w-5 text-white" />
-          </div>
-          <p className="font-mono text-sm font-semibold text-fg">
+      <div className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 text-center">
+        <div className="panel px-4 py-2">
+          <p className="font-display text-2xl text-accent phosphor leading-none">
             {formatOrgnr(orgnr)}
           </p>
-          <p className="text-[10px] uppercase tracking-wider text-fg-faint">
-            Virksomhet
-          </p>
+          <p className="text-[10px] tracking-[0.2em] text-fg-faint mt-1">VIRKSOMHET</p>
         </div>
       </div>
 
-      {/* Rollegruppe-noder */}
-      {nodes.map((node, i) => {
-        const Icon = iconForKode(node.gruppe.type?.kode);
-        const count = node.gruppe.roller?.length ?? 0;
-        return (
-          <div
-            key={i}
-            className="absolute z-10 -translate-x-1/2 -translate-y-1/2 animate-float"
-            style={{
-              left: `${node.x}%`,
-              top: `${node.y}%`,
-              animationDelay: `${i * 0.5}s`,
-            }}
-          >
-            <div className="flex items-center gap-2 rounded-full glass px-3 py-1.5 ring-glow">
-              <span
-                className="grid h-6 w-6 place-items-center rounded-full"
-                style={{
-                  backgroundColor: `rgba(${node.palette.glow},0.16)`,
-                  color: node.palette.ring,
-                }}
-              >
-                <Icon className="h-3.5 w-3.5" />
-              </span>
-              <span className="text-xs font-semibold text-fg max-w-[7rem] truncate">
-                {node.gruppe.type?.beskrivelse ?? node.gruppe.type?.kode}
-              </span>
-              <span
-                className="rounded-full px-1.5 text-[10px] font-bold"
-                style={{
-                  backgroundColor: `rgba(${node.palette.glow},0.16)`,
-                  color: node.palette.ring,
-                }}
-              >
-                {count}
-              </span>
-            </div>
+      {nodes.map((node, i) => (
+        <div
+          key={i}
+          className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
+          style={{ left: `${node.x}%`, top: `${node.y}%` }}
+        >
+          <div className="panel px-2.5 py-1 text-center whitespace-nowrap">
+            <span className="text-accent phosphor font-bold text-xs">
+              [{node.gruppe.type?.kode ?? '???'}]
+            </span>
+            <span className="ml-1.5 text-fg-dim text-xs">×{node.gruppe.roller?.length ?? 0}</span>
           </div>
-        );
-      })}
-    </div>
+        </div>
+      ))}
+    </Panel>
   );
 }
 
-function RoleGroupCard({ gruppe, palette, featured, index }) {
-  const Icon = iconForKode(gruppe.type?.kode);
+function RecordCard({ gruppe, featured, index }) {
   const roller = gruppe.roller ?? [];
-  const tittel = gruppe.type?.beskrivelse ?? gruppe.type?.kode ?? 'Rollegruppe';
+  const tittel = (gruppe.type?.beskrivelse ?? gruppe.type?.kode ?? 'ROLLEGRUPPE').toUpperCase();
 
   return (
     <div
-      className={`ring-glow group relative overflow-hidden rounded-2xl glass p-5 animate-fade-up hover:-translate-y-1 ${
-        featured ? 'sm:col-span-2' : ''
-      }`}
-      style={{ animationDelay: `${index * 80}ms` }}
+      className={`panel animate-boot-up ${featured ? 'sm:col-span-2' : ''}`}
+      style={{ animationDelay: `${index * 70}ms` }}
     >
-      {/* Fargeglød i hjørnet */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full opacity-40 blur-2xl transition-opacity duration-300 group-hover:opacity-80"
-        style={{ background: `radial-gradient(circle, rgba(${palette.glow},0.55), transparent 70%)` }}
-      />
-
-      <div className="relative flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <span
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-xl"
-            style={{
-              backgroundColor: `rgba(${palette.glow},0.14)`,
-              color: palette.ring,
-              border: `1px solid rgba(${palette.glow},0.3)`,
-            }}
-          >
-            <Icon className="h-[22px] w-[22px]" />
-          </span>
-          <div className="min-w-0">
-            <h3 className="truncate font-bold text-fg">{tittel}</h3>
-            <p className="text-xs text-fg-faint">
-              {roller.length} {roller.length === 1 ? 'rolle' : 'roller'}
-            </p>
-          </div>
-        </div>
-        <KodeBadge kode={gruppe.type?.kode} palette={palette} />
+      <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-2">
+        <p className="text-accent phosphor font-bold tracking-wide truncate">
+          [ {tittel} ]
+        </p>
+        <span className="shrink-0 text-xs font-bold text-bg bg-accent px-1.5 py-0.5">
+          {gruppe.type?.kode ?? '—'}
+        </span>
       </div>
 
-      <div className={`relative mt-4 ${featured ? 'grid sm:grid-cols-2 gap-3' : 'space-y-3'}`}>
+      <div className={`p-4 ${featured ? 'grid sm:grid-cols-2 gap-4' : 'space-y-4'}`}>
         {roller.map((rolle, i) => (
-          <RoleEntry key={i} rolle={rolle} palette={palette} />
+          <RecordRow key={i} rolle={rolle} />
         ))}
       </div>
     </div>
   );
 }
 
-function RoleEntry({ rolle, palette }) {
+function RecordRow({ rolle }) {
   const innehaver = describeHolder(rolle);
-  const rolleNavn = rolle.type?.beskrivelse ?? rolle.type?.kode ?? 'Rolle';
+  const rolleNavn = (rolle.type?.beskrivelse ?? rolle.type?.kode ?? '').toUpperCase();
 
   return (
-    <div className="rounded-xl border border-line bg-[var(--input-bg)] p-3.5">
-      <div className="flex items-start justify-between gap-2">
-        <p className="font-semibold text-fg leading-tight">{innehaver.primary}</p>
-        <span className="shrink-0 rounded-md bg-[var(--surface-hover)] px-2 py-0.5 text-[11px] font-medium text-fg-muted">
-          {rolleNavn}
-        </span>
+    <div className="text-sm">
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="font-bold text-fg phosphor truncate">{innehaver.primary}</p>
+        <span className="shrink-0 text-[11px] text-fg-faint">{rolleNavn}</span>
       </div>
 
-      {innehaver.details.length > 0 && (
-        <dl className="mt-2.5 space-y-1.5">
-          {innehaver.details.map((d) => (
-            <DetailRow key={d.label} {...d} palette={palette} />
-          ))}
-        </dl>
-      )}
+      <div className="mt-1.5 space-y-0.5">
+        {innehaver.details.map((d) => (
+          <Field key={d.label} {...d} />
+        ))}
+      </div>
 
       {(rolle.fratraadt || rolle.avregistrert || rolle.person?.erDoed || rolle.enhet?.erSlettet) && (
-        <div className="mt-2.5 flex flex-wrap gap-1.5">
-          {rolle.fratraadt && <StatusPill>Fratrådt</StatusPill>}
-          {rolle.avregistrert && <StatusPill>Avregistrert</StatusPill>}
-          {rolle.person?.erDoed && <StatusPill>Død</StatusPill>}
-          {rolle.enhet?.erSlettet && <StatusPill>Slettet</StatusPill>}
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {rolle.fratraadt && <StatusTag>FRATRÅDT</StatusTag>}
+          {rolle.avregistrert && <StatusTag>AVREGISTRERT</StatusTag>}
+          {rolle.person?.erDoed && <StatusTag>DØD</StatusTag>}
+          {rolle.enhet?.erSlettet && <StatusTag>SLETTET</StatusTag>}
         </div>
       )}
     </div>
   );
 }
 
-function DetailRow({ icon: Icon, label, value, copyable, palette }) {
+// Dot-leader-rad i klassisk utskriftsstil: LABEL.......: verdi
+function Field({ label, value, copyable }) {
   return (
-    <div className="flex items-center gap-2 text-sm">
-      <Icon className="h-3.5 w-3.5 shrink-0 text-fg-faint" />
-      <dt className="text-fg-faint">{label}</dt>
-      <dd className="ml-auto flex items-center gap-1.5 min-w-0">
-        <span className={copyable ? 'font-mono tabular-nums text-fg' : 'text-fg-muted'}>
-          {value}
-        </span>
-        {copyable && <CopyButton value={value} label={label} palette={palette} />}
-      </dd>
+    <div className="flex items-baseline gap-2">
+      <span className="text-fg-faint uppercase text-xs shrink-0">{label}</span>
+      <span className="flex-1 border-b border-dotted border-[var(--border)] translate-y-[-2px]" />
+      <span className="shrink-0 tabular-nums text-fg">{value}</span>
+      {copyable && <CopyButton value={value} label={label} />}
     </div>
   );
 }
 
-function CopyButton({ value, label, palette }) {
+function CopyButton({ value, label }) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -592,7 +450,7 @@ function CopyButton({ value, label, palette }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1600);
     } catch {
-      /* utklippstavle ikke tilgjengelig */
+      /* ignorer */
     }
   }
 
@@ -601,109 +459,74 @@ function CopyButton({ value, label, palette }) {
       type="button"
       onClick={copy}
       aria-label={`Kopier ${label}`}
-      className="grid h-6 w-6 shrink-0 place-items-center rounded-md border border-line transition-colors hover:bg-[var(--surface-hover)]"
-      style={copied ? { color: '#34d399', borderColor: 'rgba(52,211,153,0.5)' } : { color: palette?.ring }}
+      className={`shrink-0 text-[11px] font-bold tracking-wide px-1.5 transition-colors ${
+        copied
+          ? 'text-bg bg-[var(--accent-2)]'
+          : 'text-accent hover:bg-accent hover:text-bg'
+      }`}
     >
-      {copied ? (
-        <Check className="h-3.5 w-3.5 animate-fade-in" strokeWidth={3} />
-      ) : (
-        <Copy className="h-3.5 w-3.5" />
-      )}
+      {copied ? '[ OK ✓ ]' : '[COPY]'}
     </button>
   );
 }
 
-function KodeBadge({ kode, palette }) {
-  if (!kode) return null;
+function StatusTag({ children }) {
   return (
-    <span
-      className="shrink-0 rounded-md px-2 py-1 font-mono text-[11px] font-bold tracking-wider"
-      style={{
-        backgroundColor: `rgba(${palette.glow},0.14)`,
-        color: palette.ring,
-        border: `1px solid rgba(${palette.glow},0.3)`,
-      }}
-    >
-      {kode}
-    </span>
-  );
-}
-
-function StatusPill({ children }) {
-  return (
-    <span className="inline-flex items-center rounded-md border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[11px] font-medium text-amber-300">
-      {children}
+    <span className="inline-block border border-[var(--border-strong)] px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-accent">
+      &lt;{children}&gt;
     </span>
   );
 }
 
 /* ───────────────────────── Tilstander ───────────────────────── */
 
-function LoadingState() {
+function BootSequence({ orgnr }) {
+  const lines = [
+    'INIT MASKINPORTEN-KLIENT',
+    'SIGNERER JWT-GRANT (RS256)',
+    'HENTER ACCESS TOKEN',
+    `SPØR BRREG/ENHETSREGISTERET ORG ${formatOrgnr(orgnr)}`,
+  ];
   return (
-    <div aria-busy="true" aria-live="polite">
-      <span className="sr-only">Henter roller…</span>
-      <div className="h-[320px] sm:h-[380px] rounded-3xl glass mb-5">
-        <Shimmer className="h-full w-full rounded-3xl" />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="rounded-2xl glass p-5">
-            <div className="flex items-center gap-3">
-              <Shimmer className="h-11 w-11 rounded-xl" />
-              <div className="flex-1 space-y-2">
-                <Shimmer className="h-3.5 w-2/3 rounded" />
-                <Shimmer className="h-3 w-1/3 rounded" />
-              </div>
-            </div>
-            <div className="mt-4 space-y-2">
-              <Shimmer className="h-12 w-full rounded-xl" />
-              <Shimmer className="h-12 w-full rounded-xl" />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+    <Panel className="p-5 font-mono text-sm">
+      {lines.map((l, i) => (
+        <p key={i} className="text-fg-dim animate-boot-up" style={{ animationDelay: `${i * 120}ms` }}>
+          <span className="text-accent phosphor">{'>'}</span> {l}
+          <span className="text-[var(--accent-2)]"> ........ OK</span>
+        </p>
+      ))}
+      <p className="text-accent phosphor mt-1">
+        <span>{'>'}</span> MOTTAR DATA<span className="cursor" />
+      </p>
+    </Panel>
   );
 }
 
-function Shimmer({ className = '' }) {
-  return (
-    <div className={`relative overflow-hidden bg-[var(--surface-hover)] ${className}`}>
-      <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-    </div>
-  );
+/* ───────────────────────── Diverse ───────────────────────── */
+
+function Panel({ className = '', children }) {
+  return <div className={`panel ${className}`}>{children}</div>;
 }
 
-function StateCard({ tone = 'info', icon: Icon, title, children }) {
-  const accent =
-    tone === 'danger'
-      ? { color: '#fb7185', glow: '251,113,133' }
-      : { color: '#22d3ee', glow: '34,211,238' };
+function Divider() {
   return (
-    <div className="mx-auto max-w-xl rounded-2xl glass ring-glow p-6 text-center animate-fade-up">
-      <span
-        className="mx-auto grid h-12 w-12 place-items-center rounded-2xl"
-        style={{
-          backgroundColor: `rgba(${accent.glow},0.14)`,
-          color: accent.color,
-          border: `1px solid rgba(${accent.glow},0.3)`,
-        }}
-      >
-        <Icon className="h-6 w-6" />
-      </span>
-      <h3 className="mt-4 text-lg font-bold text-fg">{title}</h3>
-      <p className="mt-1.5 text-sm text-fg-muted">{children}</p>
-    </div>
+    <div
+      aria-hidden
+      className="mt-2 h-px w-full"
+      style={{
+        backgroundImage:
+          'repeating-linear-gradient(to right, var(--border-strong) 0 6px, transparent 6px 12px)',
+      }}
+    />
   );
 }
 
 function Footer() {
   return (
     <footer className="mt-auto border-t border-line">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 text-sm text-fg-faint">
-        Data hentes fra Brønnøysundregistrenes autoriserte API (PPE/test) via
-        Maskinporten.
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 text-xs text-fg-faint tracking-wide">
+        BRØNNØYSUNDREGISTRENE · AUTORISERT API (PPE/TEST) · MASKINPORTEN ·{' '}
+        <span className="cursor" />
       </div>
     </footer>
   );
@@ -720,20 +543,15 @@ function describeHolder(rolle) {
     const details = [];
     if (rolle.person.fodselsnummer) {
       details.push({
-        icon: Fingerprint,
-        label: 'Fødselsnr.',
+        label: 'Fødselsnr',
         value: rolle.person.fodselsnummer,
         copyable: true,
       });
     }
     if (rolle.person.fodselsdato) {
-      details.push({
-        icon: CalendarDays,
-        label: 'Født',
-        value: rolle.person.fodselsdato,
-      });
+      details.push({ label: 'Født', value: rolle.person.fodselsdato });
     }
-    return { primary: fulltNavn || 'Ukjent person', details };
+    return { primary: fulltNavn || 'UKJENT PERSON', details };
   }
   if (rolle.enhet) {
     const navn = Array.isArray(rolle.enhet.navn)
@@ -742,7 +560,6 @@ function describeHolder(rolle) {
     const details = [];
     if (rolle.enhet.organisasjonsnummer) {
       details.push({
-        icon: Hash,
         label: 'Org.nr',
         value: rolle.enhet.organisasjonsnummer,
         copyable: true,
@@ -750,14 +567,13 @@ function describeHolder(rolle) {
     }
     if (rolle.enhet.organisasjonsform?.beskrivelse) {
       details.push({
-        icon: Building2,
         label: 'Form',
         value: rolle.enhet.organisasjonsform.beskrivelse,
       });
     }
-    return { primary: navn || 'Ukjent virksomhet', details };
+    return { primary: navn || 'UKJENT VIRKSOMHET', details };
   }
-  return { primary: 'Ukjent', details: [] };
+  return { primary: 'UKJENT', details: [] };
 }
 
 function formatOrgnr(orgnr) {
