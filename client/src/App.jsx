@@ -198,7 +198,7 @@ export default function App() {
           )}
 
           {status === 'success' && rollegrupper.length > 0 && (
-            <Results orgnr={searchedOrgnr} rollegrupper={rollegrupper} />
+            <Results rollegrupper={rollegrupper} />
           )}
         </div>
       </main>
@@ -377,8 +377,10 @@ function EnhetHeader({ enhet, orgnr }) {
       <p className="font-display text-lg sm:text-xl text-accent phosphor leading-tight">
         {navn}
       </p>
+      {orgform && (
+        <p className="mt-1 text-sm font-bold text-fg phosphor">{orgform}</p>
+      )}
       <div className="mt-2 space-y-0.5 text-sm">
-        {orgform && <Field label="Form" value={orgform} />}
         {adresseLinje && <Field label="Sted" value={adresseLinje} />}
         {naering && <Field label="Næring" value={naering} />}
         {stiftet && <Field label="Stiftet" value={stiftet} />}
@@ -387,80 +389,18 @@ function EnhetHeader({ enhet, orgnr }) {
   );
 }
 
-function Results({ orgnr, rollegrupper }) {
-  const [activeFilter, setActiveFilter] = useState(null); // null = vis alle
-
-  const totalRoller = rollegrupper.reduce(
-    (sum, g) => sum + (g.roller?.length ?? 0),
-    0,
-  );
-
-  const filtered = activeFilter
-    ? rollegrupper.filter((g) => g.type?.kode === activeFilter)
-    : rollegrupper;
-
+function Results({ rollegrupper }) {
   let featuredIdx = 0;
-  filtered.forEach((g, i) => {
-    if ((g.roller?.length ?? 0) > (filtered[featuredIdx]?.roller?.length ?? 0)) {
+  rollegrupper.forEach((g, i) => {
+    if ((g.roller?.length ?? 0) > (rollegrupper[featuredIdx]?.roller?.length ?? 0)) {
       featuredIdx = i;
     }
   });
 
-  // Unike rollekoder for filter-chips.
-  const koder = rollegrupper.map((g) => g.type?.kode).filter(Boolean);
-
   return (
     <section aria-live="polite">
-      <div className="flex flex-wrap items-baseline justify-between gap-2 text-accent phosphor">
-        <p className="font-bold tracking-wider">
-          {'>>>'} RESULTAT · ORG {formatOrgnr(orgnr)}
-        </p>
-        <p className="text-sm text-fg-dim">
-          {rollegrupper.length} GRUPPER / {totalRoller} ROLLER
-        </p>
-      </div>
-
-      {/* Farget legend */}
-      <div className="mt-2 flex flex-wrap gap-3 text-xs">
-        {koder.map((kode) => {
-          const farge = rolleFarge(kode);
-          return (
-            <span key={kode} className="inline-flex items-center gap-1.5">
-              <span
-                className="inline-block w-3 h-3 border border-line"
-                style={{ backgroundColor: farge.bg }}
-              />
-              <span className="text-fg-dim">{ROLLE_BESKRIVELSER[kode] || kode}</span>
-            </span>
-          );
-        })}
-      </div>
-      <Divider />
-
-      {/* Rollekode-filter */}
-      {koder.length > 1 && (
-        <div className="mt-4 flex flex-wrap gap-2">
-          <FilterChip
-            label="ALLE"
-            active={activeFilter === null}
-            onClick={() => setActiveFilter(null)}
-          />
-          {koder.map((kode) => (
-            <FilterChip
-              key={kode}
-              kode={kode}
-              label={ROLLE_BESKRIVELSER[kode] || kode}
-              active={activeFilter === kode}
-              onClick={() =>
-                setActiveFilter((prev) => (prev === kode ? null : kode))
-              }
-            />
-          ))}
-        </div>
-      )}
-
-      <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 [grid-auto-flow:dense]">
-        {filtered.map((gruppe, i) => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 [grid-auto-flow:dense]">
+        {rollegrupper.map((gruppe, i) => (
           <RecordCard
             key={(gruppe.type?.kode ?? 'g') + i}
             gruppe={gruppe}
@@ -469,116 +409,7 @@ function Results({ orgnr, rollegrupper }) {
           />
         ))}
       </div>
-
-      <div className="mt-5">
-        <NodeMap orgnr={orgnr} rollegrupper={rollegrupper} activeFilter={activeFilter} />
-      </div>
     </section>
-  );
-}
-
-function FilterChip({ kode, label, active, onClick }) {
-  const farge = kode ? rolleFarge(kode) : null;
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`px-2.5 py-1 text-xs font-bold tracking-wider border transition-colors inline-flex items-center gap-1.5 ${active
-        ? farge
-          ? 'border-[var(--border-strong)]'
-          : 'bg-accent text-bg border-[var(--border-strong)]'
-        : 'text-fg-dim border-line hover:text-accent hover:border-[var(--border-strong)]'
-        }`}
-      style={active && farge ? { backgroundColor: farge.bg, color: farge.text } : undefined}
-    >
-      {farge && !active && (
-        <span
-          className="inline-block w-2.5 h-2.5"
-          style={{ backgroundColor: farge.bg }}
-        />
-      )}
-      {label}
-    </button>
-  );
-}
-
-function NodeMap({ orgnr, rollegrupper, activeFilter }) {
-  const n = rollegrupper.length;
-  const rx = n <= 2 ? 26 : 37;
-  const ry = 32;
-  const nodes = rollegrupper.map((g, i) => {
-    const angle = (-90 + (360 / n) * i) * (Math.PI / 180);
-    return {
-      x: 50 + rx * Math.cos(angle),
-      y: 50 + ry * Math.sin(angle),
-      gruppe: g,
-    };
-  });
-
-  return (
-    <Panel className="relative h-[300px] sm:h-[360px] overflow-hidden p-3">
-      <p className="absolute left-3 top-2 z-10 text-[11px] tracking-[0.2em] text-fg-faint">
-        [ RELASJONSKART ]
-      </p>
-
-      <svg className="absolute inset-0 h-full w-full" aria-hidden>
-        {nodes.map((node, i) => {
-          const kode = node.gruppe.type?.kode;
-          const dimmed = activeFilter && kode !== activeFilter;
-          return (
-            <line
-              key={i}
-              x1="50%"
-              y1="50%"
-              x2={`${node.x}%`}
-              y2={`${node.y}%`}
-              stroke={dimmed ? 'var(--border)' : rolleFarge(kode).bg}
-              strokeWidth={activeFilter === kode ? '2' : '1.5'}
-              strokeOpacity={dimmed ? '0.25' : '0.7'}
-              strokeDasharray="3 4"
-              className="transition-all duration-300"
-            />
-          );
-        })}
-      </svg>
-
-      <div className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 text-center">
-        <div className="panel px-4 py-2">
-          <p className="font-display text-2xl text-accent phosphor leading-none">
-            {formatOrgnr(orgnr)}
-          </p>
-          <p className="text-[10px] tracking-[0.2em] text-fg-faint mt-1">VIRKSOMHET</p>
-        </div>
-      </div>
-
-      {nodes.map((node, i) => {
-        const kode = node.gruppe.type?.kode;
-        const isActive = activeFilter === kode;
-        const dimmed = activeFilter && !isActive;
-        return (
-          <div
-            key={i}
-            className={`absolute z-10 -translate-x-1/2 -translate-y-1/2 transition-opacity duration-300 ${dimmed ? 'opacity-30' : 'opacity-100'
-              }`}
-            style={{ left: `${node.x}%`, top: `${node.y}%` }}
-          >
-            <div
-              className={`px-2.5 py-1 text-center whitespace-nowrap border ${isActive ? 'border-white/40 shadow-[var(--glow)]' : 'border-transparent'
-                }`}
-              style={{
-                backgroundColor: rolleFarge(kode).bg,
-                color: rolleFarge(kode).text,
-              }}
-            >
-              <span className="font-bold text-xs">
-                {rolleNavn(node.gruppe.type)}
-              </span>
-              <span className="ml-1.5 text-xs opacity-60">×{node.gruppe.roller?.length ?? 0}</span>
-            </div>
-          </div>
-        );
-      })}
-    </Panel>
   );
 }
 
@@ -597,7 +428,7 @@ function RecordCard({ gruppe, featured, index }) {
         className="flex items-center justify-between gap-2 px-4 py-2.5"
         style={{ backgroundColor: farge.bg, color: farge.text }}
       >
-        <p className="font-bold tracking-wide truncate">
+        <p className="font-bold tracking-wide">
           {tittel}
         </p>
         <span className="shrink-0 text-xs opacity-75">
@@ -627,7 +458,7 @@ function RecordRow({ rolle, gruppeKode }) {
   return (
     <div className="text-sm">
       <div className="flex items-baseline justify-between gap-2">
-        <p className="font-bold text-fg phosphor truncate">
+        <p className="font-bold text-fg phosphor">
           {erStyreleder && <span className="text-accent mr-1" title="Styrets leder">★</span>}
           {innehaver.primary}
         </p>
