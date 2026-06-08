@@ -49,7 +49,10 @@ function rolleFarge(kode) {
 }
 
 export default function App() {
-  const [orgnr, setOrgnr] = useState('');
+  const [orgnr, setOrgnr] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('orgnr') || '';
+  });
   const [validationError, setValidationError] = useState('');
   const [status, setStatus] = useState('idle');
   const [errorMessage, setErrorMessage] = useState('');
@@ -58,6 +61,15 @@ export default function App() {
   const [searchedOrgnr, setSearchedOrgnr] = useState('');
   const [loadingRandom, setLoadingRandom] = useState(false);
   const resultsRef = useRef(null);
+  const didAutoSearch = useRef(false);
+
+  // Auto-søk hvis orgnr kom fra URL.
+  useEffect(() => {
+    if (!didAutoSearch.current && ORGNR_PATTERN.test(orgnr)) {
+      didAutoSearch.current = true;
+      runSearch(orgnr);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if ((status === 'success' || status === 'error') && resultsRef.current) {
@@ -86,6 +98,10 @@ export default function App() {
     setData(null);
     setEnhetInfo(null);
     setSearchedOrgnr(value);
+
+    const url = new URL(window.location);
+    url.searchParams.set('orgnr', value);
+    history.replaceState(null, '', url);
 
     const [rollerResult, enhetResult] = await Promise.allSettled([
       fetchRoller(value),
@@ -294,7 +310,7 @@ function EnhetHeader({ enhet, orgnr }) {
     ? [adresse.poststed, adresse.kommune].filter(Boolean).join(', ')
     : null;
   const naeringKode = enhet.naeringskode1;
-  const naering = naeringKode
+  const naering = naeringKode && naeringKode.kode !== '00.000'
     ? `${naeringKode.kode} ${naeringKode.beskrivelse}`
     : null;
 
@@ -314,26 +330,26 @@ function EnhetHeader({ enhet, orgnr }) {
         {naering && <Field label="Næring" value={naering} />}
         {stiftet && <Field label="Stiftet" value={stiftet} />}
       </div>
+      <a
+        href={`https://data.ppe.brreg.no/enhetsregisteret/oppslag/enheter/${orgnr}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-block mt-3 text-xs text-accent underline decoration-dotted underline-offset-4 hover:bg-accent hover:text-bg"
+      >
+        Se i Enhetsregisteret →
+      </a>
     </Panel>
   );
 }
 
 function Results({ rollegrupper }) {
-  let featuredIdx = 0;
-  rollegrupper.forEach((g, i) => {
-    if ((g.roller?.length ?? 0) > (rollegrupper[featuredIdx]?.roller?.length ?? 0)) {
-      featuredIdx = i;
-    }
-  });
-
   return (
     <section aria-live="polite">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 [grid-auto-flow:dense]">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {rollegrupper.map((gruppe, i) => (
           <RecordCard
             key={(gruppe.type?.kode ?? 'g') + i}
             gruppe={gruppe}
-            featured={i === featuredIdx}
             index={i}
           />
         ))}
@@ -342,7 +358,7 @@ function Results({ rollegrupper }) {
   );
 }
 
-function RecordCard({ gruppe, featured, index }) {
+function RecordCard({ gruppe, index }) {
   const roller = gruppe.roller ?? [];
   const kode = gruppe.type?.kode;
   const tittel = rolleNavn(gruppe.type).toUpperCase();
@@ -350,7 +366,7 @@ function RecordCard({ gruppe, featured, index }) {
 
   return (
     <div
-      className={`panel animate-fade-in overflow-hidden ${featured ? 'sm:col-span-2' : ''}`}
+      className="panel animate-fade-in overflow-hidden"
       style={{ animationDelay: `${index * 70}ms` }}
     >
       <div
@@ -363,7 +379,7 @@ function RecordCard({ gruppe, featured, index }) {
         </span>
       </div>
 
-      <div className={`p-4 ${featured ? 'grid sm:grid-cols-2 gap-4' : 'space-y-4'}`}>
+      <div className="p-4 space-y-4">
         {roller.map((rolle, i) => (
           <RecordRow key={i} rolle={rolle} gruppeKode={kode} />
         ))}

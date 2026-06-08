@@ -1,9 +1,16 @@
+import { fileURLToPath } from 'url';
+import path from 'path';
 import express from 'express';
 import { loadConfig } from './config.js';
 import { getMaskinportenToken } from './maskinporten.js';
 
 const config = loadConfig();
 const app = express();
+
+// Serve frontend i produksjon (client/dist bygges av "npm run build").
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const clientDist = path.join(__dirname, '../../client/dist');
+app.use(express.static(clientDist));
 
 const ORGNR_PATTERN = /^\d{9}$/;
 
@@ -128,6 +135,12 @@ app.get('/api/tilfeldig', async (_req, res) => {
   return res.status(502).json({
     error: 'Klarte ikke å finne en tilfeldig enhet. Prøv igjen.',
   });
+});
+
+// SPA fallback: alle ikke-API-ruter serverer index.html
+// slik at client-side routing (f.eks. ?orgnr=...) fungerer.
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(clientDist, 'index.html'));
 });
 
 app.listen(config.port, () => {
