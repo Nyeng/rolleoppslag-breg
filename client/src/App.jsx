@@ -392,6 +392,7 @@ function RecordRow({ rolle, gruppeKode }) {
   const innehaver = describeHolder(rolle);
   const rolleLabel = rolleNavn(rolle.type).toUpperCase();
   const erStyreleder = gruppeKode === 'STYR' && rolle.type?.kode === 'LEDE';
+  const visRolleLabel = rolle.type?.kode !== gruppeKode;
 
   const kanHenteDagl =
     rolle.enhet?.organisasjonsnummer &&
@@ -404,7 +405,7 @@ function RecordRow({ rolle, gruppeKode }) {
           {erStyreleder && <span className="text-accent mr-1" title="Styrets leder">★</span>}
           {innehaver.primary}
         </p>
-        <span className="shrink-0 text-[11px] text-fg-faint">{rolleLabel}</span>
+        {visRolleLabel && <span className="shrink-0 text-xs text-fg-faint">{rolleLabel}</span>}
       </div>
 
       <div className="mt-1.5 space-y-0.5">
@@ -478,7 +479,7 @@ function DagligLederLookup({ orgnr }) {
   const holder = describeHolder(dagl);
   return (
     <div className="mt-2 border-t border-line pt-2">
-      <p className="text-[11px] text-fg-faint tracking-[0.15em] mb-1">DAGLIG LEDER</p>
+      <p className="text-xs text-fg-faint tracking-[0.15em] mb-1">DAGLIG LEDER</p>
       <p className="font-bold text-fg">{holder.primary}</p>
       <div className="mt-1 space-y-0.5">
         {holder.details.map((d) => (
